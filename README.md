@@ -79,7 +79,7 @@ app/
     └── s3_service.py       # S3 avatar upload
 tests/
 ├── conftest.py             # moto fixtures — no real AWS needed
-└── test_users_api.py       # 11 tests
+└── test_users_api.py       # 12 tests
 ```
 
 ### Endpoints

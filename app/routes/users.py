@@ -4,6 +4,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from pydantic import EmailStr
 
 from app.models.user import UserResponse
 from app.services.dynamodb_service import DynamoDBService
@@ -51,8 +52,8 @@ async def list_users(
     summary="Create a new user",
 )
 async def create_user(
-    name: str = Form(..., description="Full name of the user"),
-    email: str = Form(..., description="Unique email address"),
+    name: str = Form(..., description="Full name of the user", min_length=1),
+    email: EmailStr = Form(..., description="Unique email address"),
     avatar: UploadFile = File(..., description="Avatar image (JPEG, PNG, GIF, WebP)"),
     db: DynamoDBService = Depends(get_dynamodb),
     s3: S3Service = Depends(get_s3),

@@ -97,6 +97,15 @@ def test_create_user_missing_email(client, sample_image):
     assert response.status_code == 422
 
 
+def test_create_user_invalid_email(client, sample_image):
+    response = client.post(
+        "/user",
+        data={"name": "Bad Email", "email": "not-an-email"},
+        files={"avatar": ("avatar.png", io.BytesIO(sample_image), "image/png")},
+    )
+    assert response.status_code == 422
+
+
 def test_create_user_missing_avatar(client):
     response = client.post(
         "/user",
