@@ -201,4 +201,5 @@ jobs:
           image-ref: ${{ needs.build.outputs.image-ref }}
           format: table
           severity: CRITICAL,HIGH
+          trivyignores: .trivyignore
           exit-code: "0"   # Log findings but don't fail the build

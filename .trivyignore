@@ -1,0 +1,4 @@
+# CVE-2026-0861 — glibc integer overflow in memalign
+# Status: affected, no fixed version available as of 2026-02-24.
+# Re-evaluate when a patched base image is released.
+CVE-2026-0861
