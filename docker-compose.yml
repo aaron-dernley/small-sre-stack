@@ -1,0 +1,50 @@
+version: "3.9"
+
+# Local development stack: LocalStack (S3 + DynamoDB + IAM) + FastAPI app
+#
+# Do not run this directly. Use the Makefile:
+#
+#   make dev          # start full stack (provisions infra via Terraform, then starts API)
+#   make smoke-test   # verify the API endpoints work
+#   make down         # stop everything
+#
+# The Makefile mirrors the production deployment order:
+#   terraform apply → infrastructure exists → application starts
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_ENDPOINT_URL: http://localstack:4566
+      DYNAMODB_TABLE_NAME: prima-tech-challenge-users
+      S3_BUCKET_NAME: prima-tech-challenge
+      # Use localhost so avatar URLs are reachable from the host browser
+      S3_PUBLIC_URL_BASE: "http://localhost:4566/prima-tech-challenge"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    restart: on-failure
+
+  localstack:
+    image: localstack/localstack:3
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: s3,dynamodb,iam
+      DEFAULT_REGION: us-east-1
+      # Bind to 0.0.0.0 so the API container can reach LocalStack
+      LOCALSTACK_HOST: "0.0.0.0"
+      DEBUG: "0"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 15s

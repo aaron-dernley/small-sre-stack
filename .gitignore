@@ -1,0 +1,50 @@
+# Swamp managed defaults
+# Feel free to modify this file to suit your needs
+
+# Local telemetry (not needed for reconstruction)
+.swamp/telemetry/
+
+# Encryption keyfile (NEVER commit - allows decrypting secrets)
+.swamp/secrets/keyfile
+
+# Claude Code configuration (managed by swamp)
+.claude/
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+*.egg-info/
+dist/
+build/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+bandit-report.json
+
+# ── Terraform ────────────────────────────────────────────────────────────────
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfvars
+*.tfplan
+
+# ── Helm ─────────────────────────────────────────────────────────────────────
+helm/prima-api/charts/
+
+# ── IDEs ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

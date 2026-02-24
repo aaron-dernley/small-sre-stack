@@ -1,0 +1,15 @@
+apiVersion: v2
+name: prima-api
+description: >
+  Helm chart for the Prima SRE Tech Challenge API – a FastAPI service backed
+  by AWS DynamoDB (user persistence) and S3 (avatar storage).
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - prima
+  - fastapi
+  - dynamodb
+  - s3
+maintainers:
+  - name: SRE Team
