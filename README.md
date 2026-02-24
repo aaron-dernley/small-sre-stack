@@ -11,6 +11,10 @@ Python REST API backed by DynamoDB and S3, containerised with Docker, provisione
 No AWS account needed — everything runs against LocalStack with dummy credentials.
 
 ```bash
+# Install Python test dependencies
+# On Ubuntu 23.04+ you may need a venv or --break-system-packages
+pip3 install -r requirements-dev.txt
+
 # Run unit tests (no services required — AWS calls are mocked with moto)
 make test
 
