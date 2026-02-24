@@ -34,8 +34,8 @@ variable "eks_oidc_provider_arn" {
     ARN of the EKS cluster OIDC provider used for IAM Roles for Service
     Accounts (IRSA).  Leave empty when not deploying to EKS.
   EOT
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
 }
 
 variable "eks_oidc_provider_url" {
@@ -43,8 +43,8 @@ variable "eks_oidc_provider_url" {
     Hostname of the EKS OIDC provider (without https://).
     Example: oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE123
   EOT
-  type    = string
-  default = ""
+  type        = string
+  default     = ""
 }
 
 variable "k8s_namespace" {

@@ -27,9 +27,7 @@ class S3Service:
         self._bucket_name = settings.s3_bucket_name
         self._settings = settings
 
-    def upload_avatar(
-        self, file_content: bytes, file_key: str, content_type: str
-    ) -> str:
+    def upload_avatar(self, file_content: bytes, file_key: str, content_type: str) -> str:
         """Upload avatar bytes and return its public URL.
 
         When ``S3_PUBLIC_URL_BASE`` is set (e.g. for LocalStack), that base is
@@ -51,6 +49,5 @@ class S3Service:
             return f"{base}/{file_key}"
 
         return (
-            f"https://{self._bucket_name}.s3.{self._settings.aws_region}"
-            f".amazonaws.com/{file_key}"
+            f"https://{self._bucket_name}.s3.{self._settings.aws_region}.amazonaws.com/{file_key}"
         )

@@ -18,9 +18,9 @@ resource "aws_iam_policy" "s3_access" {
         Resource = "${aws_s3_bucket.avatars.arn}/*"
       },
       {
-        Sid    = "BucketList"
-        Effect = "Allow"
-        Action = ["s3:ListBucket"]
+        Sid      = "BucketList"
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
         Resource = aws_s3_bucket.avatars.arn
       }
     ]
