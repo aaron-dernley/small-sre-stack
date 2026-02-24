@@ -271,7 +271,7 @@ helm-lint ───────────────────────�
 | `terraform-validate` | Terraform CLI | HCL formatting + schema validation |
 | `helm-lint` | Helm | Chart structure + dry-run render |
 | `build` | Docker Buildx | Image push to GHCR with SBOM + provenance |
-| `scan-image` | Trivy | CVE scan → GitHub Security SARIF |
+| `scan-image` | Trivy | CVE scan — CRITICAL/HIGH findings logged to job output |
 
 All five quality gates must pass before `build` runs. Images are only pushed on commits to `main` — PRs build but do not push.
 
