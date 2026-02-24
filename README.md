@@ -275,6 +275,36 @@ helm-lint ───────────────────────�
 
 All five quality gates must pass before `build` runs. Images are only pushed on commits to `main` — PRs build but do not push.
 
+### What the pipeline would look like in a production team
+
+**Pull request gates**
+
+The pipeline already runs all five quality checks (test, lint, SAST, terraform-validate, helm-lint) on every PR. What's missing is enforcement — currently nothing stops a PR being merged if those checks fail. In production you would pair this with GitHub branch protection rules that mark those jobs as required status checks. A PR with a failing test, lint error, or security finding cannot be merged until it is fixed. The build and image push jobs deliberately don't run on PRs (no point pushing an unreviewed image), but all the validation that protects `main` runs on every commit to every branch.
+
+**Versioning**
+
+The current image tagging strategy uses the branch name (`main`) and commit SHA (`sha-abc1234`). In a release workflow you would adopt semantic versioning — patch bumps for fixes, minor for new features, major for breaking changes. Tags like `v1.4.2` would be created either manually or via a tool like `semantic-release`, which reads conventional commit messages (`fix:`, `feat:`, `feat!:`) and determines the next version automatically. The same SHA-tagged image built in CI gets re-tagged with the semver version at promotion time — no rebuild. This gives every running deployment a human-readable version that maps directly to a git tag, a changelog entry, and a known set of changes.
+
+**Artifact management**
+
+GHCR works for a single-team project, but a larger organisation would typically use a dedicated artifact repository like JFrog Artifactory or AWS ECR with replication. Artifactory gives you a single registry for Docker images, Helm charts, Python packages, and Terraform modules, with fine-grained access control, retention policies, and audit logs across all of them. It also proxies public registries (PyPI, Docker Hub) so your builds don't depend on external uptime and every dependency pulled in CI is cached and scanned internally.
+
+**Image promotion**
+
+Rather than building a new image on every merge to `main`, a mature pipeline promotes a single immutable image through environments. The image built and scanned from a PR is tagged with its commit SHA — that exact image (not a rebuild) is what gets deployed to staging and then production. This guarantees what was tested is what ships.
+
+**Secrets management**
+
+Static secrets in GitHub Actions are a starting point. In production these would be replaced with short-lived credentials via OIDC federation — GitHub Actions already supports this for AWS, so the pipeline can assume an IAM role directly without storing any AWS keys as secrets at all.
+
+**End-to-end / integration tests**
+
+The current test suite mocks AWS with moto. A production pipeline would add a stage that deploys to a short-lived staging environment, runs integration tests against it (real DynamoDB, real S3), and tears it down — giving confidence that the infrastructure and application work together, not just in isolation.
+
+**Deployment**
+
+The pipeline currently stops at building and scanning the image. The natural next step is a deploy job that runs `helm upgrade` against a staging cluster on every merge to `main`, gated behind the full quality pipeline. Production promotion could be a separate manual-approval job or triggered by tagging a release.
+
 ---
 
 ## Production considerations
@@ -289,4 +319,4 @@ All five quality gates must pass before `build` runs. Images are only pushed on 
 | DynamoDB pagination | Replace `scan` with paginated queries for large datasets |
 | Terraform state | S3 backend + DynamoDB lock table |
 | Multi-region | DynamoDB Global Tables + S3 Cross-Region Replication |
-| Image registry | Private ECR with immutability + scan-on-push |
+| Image registry | Private ECR or Artifactory with immutability + scan-on-push |
