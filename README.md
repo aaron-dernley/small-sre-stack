@@ -6,7 +6,7 @@ Python REST API backed by DynamoDB and S3, containerised with Docker, provisione
 
 ## Quickstart
 
-**Prerequisites:** Docker, Docker Compose v2, Terraform ≥ 1.5, Python 3.11+
+**Prerequisites:** Docker, Docker Compose v2, Terraform ≥ 1.5, Python 3.9+
 
 No AWS account needed — everything runs against LocalStack with dummy credentials.
 
@@ -29,7 +29,9 @@ make down
 
 ```
 ── GET /health ──────────────────────────────────────────────
-{"status": "healthy"}
+{
+    "status": "healthy"
+}
 
 ── GET /users (before create) ───────────────────────────────
 []
@@ -254,7 +256,7 @@ helm upgrade --install prima-api helm/prima-api/ \
 Pipeline: `.github/workflows/ci-cd.yaml`
 
 ```
-test (3.11 + 3.12) ───────────────────────────────────────────┐
+test ──────────────────────────────────────────────────────────┐
 lint (ruff) ───────────────────────────────────────────────────┤
 security-python (bandit) ──────────────────────────────────────┼──▶ build ──▶ scan-image (trivy)
 terraform-validate ────────────────────────────────────────────┤
@@ -263,7 +265,7 @@ helm-lint ───────────────────────�
 
 | Job | Tool | Checks |
 |---|---|---|
-| `test` | pytest + moto | All API logic, mocked AWS, Python 3.11 + 3.12 |
+| `test` | pytest + moto | All API logic, mocked AWS |
 | `lint` | ruff | Style, imports, formatting |
 | `security-python` | bandit | SAST — common Python security issues |
 | `terraform-validate` | Terraform CLI | HCL formatting + schema validation |
