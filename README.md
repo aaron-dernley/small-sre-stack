@@ -12,24 +12,57 @@ No AWS account needed — everything runs against LocalStack with dummy credenti
 
 ```bash
 # Install Python test dependencies
-# On Ubuntu 23.04+ you may need a venv or --break-system-packages
+# On Ubuntu 23.04+ you may need: pip3 install --user -r requirements-dev.txt
 pip3 install -r requirements-dev.txt
 
-# Run unit tests (no services required — AWS calls are mocked with moto)
+# Run unit tests (no running services needed — AWS calls are mocked with moto)
 make test
 
-# Start the full local stack
-# LocalStack → terraform apply → API
+# Start the full local stack: LocalStack → Terraform → API + Prometheus + Grafana
 make dev
 
-# Smoke test all three endpoints
+# Verify all three API endpoints work
 make smoke-test
 
-# Tear down
+# Send 60 s of mixed traffic to populate the Grafana dashboard
+make load
+
+# Tear down everything
 make down
 ```
 
-`make smoke-test` output:
+```bash
+# All available make targets
+make help
+```
+
+### Ports
+
+The following ports must be free on your machine before running `make dev`:
+
+| Port | Service | Change it in |
+|------|---------|-------------|
+| `8000` | API | `docker-compose.yml` → `api.ports` |
+| `4566` | LocalStack (S3, DynamoDB, IAM) | `docker-compose.yml` → `localstack.ports` |
+| `9090` | Prometheus | `docker-compose.yml` → `prometheus.ports` |
+| `3000` | Grafana | `docker-compose.yml` → `grafana.ports` |
+
+If you change the API port from `8000`, also update `LOCALSTACK_ENDPOINT` in the Makefile and pass `--url` to `scripts/load.py`. If you change the Grafana port from `3000`, update the dashboard URL in the Makefile's `observability` target.
+
+### What `make dev` does
+
+`make dev` mirrors the production deployment order — Terraform provisions infrastructure first, then the application starts against it. The application never bootstraps its own infrastructure.
+
+After `make dev` the following URLs are available:
+
+| URL | Description |
+|-----|-------------|
+| http://localhost:8000/docs | Interactive API docs (Swagger UI) |
+| http://localhost:8000/metrics | Prometheus metrics endpoint |
+| http://localhost:9090 | Prometheus |
+| http://localhost:3000/d/prima-api-obs | Grafana dashboard (no login required) |
+
+### `make smoke-test` output
 
 ```
 ── GET /health ──────────────────────────────────────────────
@@ -56,23 +89,6 @@ make down
     }
 ]
 ```
-
-```bash
-# All available targets
-make help
-```
-
-`make dev` mirrors the production deployment order — Terraform provisions infrastructure first, then the application starts against it. The application never bootstraps its own infrastructure.
-
-`make dev` also starts Prometheus and Grafana. To see live data in the dashboard:
-
-```bash
-make smoke-test   # verify endpoints work
-make load         # send 60 s of mixed traffic to populate Grafana
-```
-
-- **Prometheus** — http://localhost:9090
-- **Grafana dashboard** — http://localhost:3000/d/prima-api-obs (no login; datasource and dashboard are pre-wired)
 
 ---
 
