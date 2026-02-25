@@ -424,10 +424,8 @@ Adding Jaeger (or Tempo) to docker-compose then gives a full trace UI out of the
 
 | Topic | Approach |
 |---|---|
-| Avatar URLs | Pre-signed URLs (time-limited, no public bucket) |
 | Credentials | IRSA — no static `AWS_*` env vars in pods |
 | TLS | Terminate at ingress via cert-manager + ACM |
-| Observability | Structured JSON logs, Prometheus `/metrics`, OpenTelemetry traces |
 | Rate limiting | `slowapi` middleware |
 | DynamoDB pagination | Replace `scan` with paginated queries for large datasets |
 | Terraform state | S3 backend + DynamoDB lock table |
