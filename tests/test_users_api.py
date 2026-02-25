@@ -130,6 +130,36 @@ def test_avatar_url_stored_in_dynamodb(client, sample_image, aws_resources):
     assert listed["avatar_url"] == created_url
 
 
+def test_create_user_avatar_too_large(client):
+    """Files over 5 MB must be rejected with 413."""
+    oversized = b"x" * (5 * 1024 * 1024 + 1)
+    response = client.post(
+        "/user",
+        data={"name": "Big Upload", "email": "big@example.com"},
+        files={"avatar": ("large.png", io.BytesIO(oversized), "image/png")},
+    )
+    assert response.status_code == 413
+
+
+def test_create_user_duplicate_email_overwrites(client, sample_image):
+    """Posting the same email twice silently overwrites the first record (DynamoDB put_item
+    has no uniqueness constraint — this is the documented behaviour)."""
+    client.post(
+        "/user",
+        data={"name": "Original", "email": "dup@example.com"},
+        files={"avatar": ("a.png", io.BytesIO(sample_image), "image/png")},
+    )
+    client.post(
+        "/user",
+        data={"name": "Updated", "email": "dup@example.com"},
+        files={"avatar": ("b.png", io.BytesIO(sample_image), "image/png")},
+    )
+    users = client.get("/users").json()
+    matching = [u for u in users if u["email"] == "dup@example.com"]
+    assert len(matching) == 1
+    assert matching[0]["name"] == "Updated"
+
+
 # ---------------------------------------------------------------------------
 # Health check
 # ---------------------------------------------------------------------------
