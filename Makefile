@@ -21,9 +21,15 @@ help: ## Show available targets
 
 # ── Primary workflow (mirrors production order) ───────────────────────────────
 
-dev: ## Full local stack: LocalStack → Terraform → API
+dev: ## Full demo: LocalStack → Terraform → API + Observability → Kubernetes
 	@echo ""
-	@echo "==> [1/3] Starting LocalStack..."
+	@echo "==> Checking prerequisites..."
+	@command -v minikube >/dev/null 2>&1 || { echo "ERROR: minikube not found — https://minikube.sigs.k8s.io/docs/start/"; exit 1; }
+	@command -v helm     >/dev/null 2>&1 || { echo "ERROR: helm not found — https://helm.sh/docs/intro/install/"; exit 1; }
+	@command -v kubectl  >/dev/null 2>&1 || { echo "ERROR: kubectl not found — https://kubernetes.io/docs/tasks/tools/"; exit 1; }
+	@echo "    minikube, helm, kubectl — OK"
+	@echo ""
+	@echo "==> [1/4] Starting LocalStack..."
 	@docker compose up localstack -d
 	@echo "==> Waiting for LocalStack to be ready..."
 	@until curl -sf $(LOCALSTACK_ENDPOINT)/_localstack/health > /dev/null 2>&1; do \
@@ -31,10 +37,10 @@ dev: ## Full local stack: LocalStack → Terraform → API
 	done
 	@echo " ready."
 	@echo ""
-	@echo "==> [2/3] Provisioning infrastructure with Terraform..."
+	@echo "==> [2/4] Provisioning infrastructure with Terraform..."
 	@$(MAKE) tf-apply
 	@echo ""
-	@echo "==> [3/3] Starting API + observability stack..."
+	@echo "==> [3/4] Starting API + observability stack..."
 	@docker compose up api prometheus grafana -d
 	@echo "==> Waiting for API to be healthy..."
 	@until curl -sf http://localhost:8000/health > /dev/null 2>&1; do \
@@ -42,17 +48,28 @@ dev: ## Full local stack: LocalStack → Terraform → API
 	done
 	@echo " ready."
 	@echo ""
+	@echo "==> [4/4] Deploying to Kubernetes (minikube + Helm)..."
+	@$(MAKE) k8s
+	@echo "==> Starting persistent port-forward svc/$(HELM_RELEASE) → localhost:$(K8S_PORT)..."
+	@kubectl port-forward svc/$(HELM_RELEASE) $(K8S_PORT):80 >/dev/null 2>&1 & echo $$! > .k8s-pf.pid
+	@sleep 2
+	@echo ""
 	@echo "------------------------------------------------------------"
 	@echo "  Stack is up:"
-	@echo "    API:        http://localhost:8000"
-	@echo "    API docs:   http://localhost:8000/docs"
-	@echo "    Metrics:    http://localhost:8000/metrics"
-	@echo "    Prometheus: http://localhost:9090"
-	@echo "    Grafana:    http://localhost:3000  (no login required)"
-	@echo "    LocalStack: $(LOCALSTACK_ENDPOINT)"
+	@echo ""
+	@echo "  docker-compose:"
+	@echo "    API (direct):  http://localhost:8000"
+	@echo "    API docs:      http://localhost:8000/docs"
+	@echo "    Metrics:       http://localhost:8000/metrics"
+	@echo "    Prometheus:    http://localhost:9090"
+	@echo "    Grafana:       http://localhost:3000  (no login required)"
+	@echo ""
+	@echo "  Kubernetes (Helm chart on minikube):"
+	@echo "    API (k8s):     http://localhost:$(K8S_PORT)"
+	@echo "    API docs (k8s): http://localhost:$(K8S_PORT)/docs"
 	@echo ""
 	@echo "  Next steps:"
-	@echo "    make smoke-test   # verify the API end-to-end"
+	@echo "    make smoke-test   # verify the API (docker-compose)"
 	@echo "    make load         # send traffic and populate Grafana"
 	@echo "    make down         # stop everything"
 	@echo "------------------------------------------------------------"
@@ -169,11 +186,19 @@ k8s-down: ## Uninstall Helm release and stop minikube
 
 # ── Teardown ──────────────────────────────────────────────────────────────────
 
-down: ## Stop and remove all containers
+down: ## Stop all services — docker-compose, Kubernetes port-forward, and minikube
+	@echo "==> Stopping Kubernetes port-forward..."
+	@if [ -f .k8s-pf.pid ]; then \
+		kill $$(cat .k8s-pf.pid) 2>/dev/null || true; \
+		rm -f .k8s-pf.pid; \
+	fi
+	@echo "==> Stopping minikube..."
+	@minikube status 2>/dev/null | grep -q "Running" && $(MAKE) k8s-down || true
+	@echo "==> Stopping docker-compose..."
 	@docker compose down
 
-clean: ## Stop containers and remove local Terraform state
-	@docker compose down
+clean: ## Stop all services and remove local Terraform state
+	@$(MAKE) down
 	@rm -f  $(TF_DIR)/terraform.tfstate $(TF_DIR)/terraform.tfstate.backup
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/.terraform.lock.hcl
 	@echo "==> Clean complete."

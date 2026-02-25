@@ -6,7 +6,7 @@ Python REST API backed by DynamoDB and S3, containerised with Docker, provisione
 
 ## Quickstart
 
-**Prerequisites:** Docker, Docker Compose v2, Terraform ≥ 1.5, Python 3.9+
+**Prerequisites:** Docker, Docker Compose v2, Terraform ≥ 1.5, Python 3.10+, minikube, helm, kubectl
 
 No AWS account needed — everything runs against LocalStack with dummy credentials.
 
@@ -18,16 +18,17 @@ pip3 install -r requirements-dev.txt
 # Run unit tests (no running services needed — AWS calls are mocked with moto)
 make test
 
-# Start the full local stack: LocalStack → Terraform → API + Prometheus + Grafana
+# Start the full stack: LocalStack → Terraform → API + Prometheus + Grafana → Kubernetes
+# This single command brings up everything, including the Helm deployment on minikube
 make dev
 
-# Verify all three API endpoints work
+# Verify all three API endpoints work (against the docker-compose stack)
 make smoke-test
 
 # Send 60 s of mixed traffic to populate the Grafana dashboard
 make load
 
-# Tear down everything
+# Tear down everything (docker-compose, minikube, port-forwards)
 make down
 ```
 
@@ -42,23 +43,34 @@ The following ports must be free on your machine before running `make dev`:
 
 | Port | Service | Change it in |
 |------|---------|-------------|
-| `8000` | API | `docker-compose.yml` → `api.ports` |
+| `8000` | API (docker-compose) | `docker-compose.yml` → `api.ports` |
 | `4566` | LocalStack (S3, DynamoDB, IAM) | `docker-compose.yml` → `localstack.ports` |
 | `9090` | Prometheus | `docker-compose.yml` → `prometheus.ports` |
 | `3000` | Grafana | `docker-compose.yml` → `grafana.ports` |
+| `8080` | API (Kubernetes via minikube port-forward) | `Makefile` → `K8S_PORT` |
 
-If you change the API port from `8000`, also update `LOCALSTACK_ENDPOINT` in the Makefile and pass `--url` to `scripts/load.py`. If you change the Grafana port from `3000`, update the dashboard URL in the Makefile's `observability` target.
+If you change the API port from `8000`, also update the hardcoded health-check URL in the `dev` target of the Makefile and pass `--url` to `scripts/load.py`. If you change the Grafana port from `3000`, update the dashboard URL in the Makefile's `observability` target. If you change `K8S_PORT`, the persistent port-forward started by `make dev` and the smoke test in `make k8s-test` will both use the new value automatically.
 
 ### What `make dev` does
 
-`make dev` mirrors the production deployment order — Terraform provisions infrastructure first, then the application starts against it. The application never bootstraps its own infrastructure.
+`make dev` runs four steps in sequence, mirroring the production deployment order:
+
+1. **LocalStack** — starts S3, DynamoDB, and IAM locally via Docker
+2. **Terraform** — provisions all infrastructure against LocalStack
+3. **API + Observability** — starts the API, Prometheus, and Grafana via docker-compose
+4. **Kubernetes** — starts minikube, builds and loads the Docker image, deploys the Helm chart, and starts a persistent port-forward on `:8080`
+
+The application never bootstraps its own infrastructure — Terraform always runs first.
+
+`make dev` requires **minikube**, **helm**, and **kubectl** to be installed. It will check for these upfront and exit with a clear error if any are missing.
 
 After `make dev` the following URLs are available:
 
 | URL | Description |
 |-----|-------------|
-| http://localhost:8000/docs | Interactive API docs (Swagger UI) |
+| http://localhost:8000/docs | Interactive API docs — docker-compose |
 | http://localhost:8000/metrics | Prometheus metrics endpoint |
+| http://localhost:8080/docs | Interactive API docs — Kubernetes (minikube) |
 | http://localhost:9090 | Prometheus |
 | http://localhost:3000/d/prima-api-obs | Grafana dashboard (no login required) |
 
@@ -255,7 +267,9 @@ helm/prima-api/
 
 **Prerequisites:** minikube, helm, kubectl
 
-`make dev` must be running first (LocalStack needs to be up for the pods to reach it).
+Kubernetes is deployed automatically as part of `make dev` — you do not need to run anything separately. After `make dev` completes, the API is running in minikube and accessible at `http://localhost:8080` via a persistent port-forward.
+
+If you want to run the Kubernetes workflow independently (LocalStack must already be up):
 
 ```bash
 make k8s
@@ -263,10 +277,16 @@ make k8s
 
 This runs four steps in order: start minikube → build and load the image → deploy the Helm chart → port-forward and smoke test. The pods reach LocalStack via `host.minikube.internal:4566`.
 
-To tear down:
+To tear down only the Kubernetes resources:
 
 ```bash
 make k8s-down
+```
+
+To tear down everything (docker-compose + minikube + port-forwards):
+
+```bash
+make down
 ```
 
 ### Deploy to EKS
