@@ -1,6 +1,6 @@
 # Swamp managed defaults
 # Feel free to modify this file to suit your needs
-
+.swamp.yaml
 # Local telemetry (not needed for reconstruction)
 .swamp/telemetry/
 

@@ -36,7 +36,9 @@ async def list_users(
 ) -> list[dict]:
     """Return every user stored in DynamoDB."""
     try:
-        return db.list_users()
+        users = db.list_users()
+        logger.info("Listed %d user(s)", len(users))
+        return users
     except Exception as exc:
         logger.error("Failed to list users: %s", exc)
         raise HTTPException(
@@ -98,4 +100,5 @@ async def create_user(
             detail="Failed to save user.",
         ) from exc
 
+    logger.info("User created: %s", email)
     return UserResponse(name=name, email=email, avatar_url=avatar_url)

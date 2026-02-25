@@ -64,6 +64,16 @@ make help
 
 `make dev` mirrors the production deployment order — Terraform provisions infrastructure first, then the application starts against it. The application never bootstraps its own infrastructure.
 
+`make dev` also starts Prometheus and Grafana. To see live data in the dashboard:
+
+```bash
+make smoke-test   # verify endpoints work
+make load         # send 60 s of mixed traffic to populate Grafana
+```
+
+- **Prometheus** — http://localhost:9090
+- **Grafana dashboard** — http://localhost:3000/d/prima-api-obs (no login; datasource and dashboard are pre-wired)
+
 ---
 
 ## Task 1 – Python API
@@ -308,6 +318,89 @@ The current test suite mocks AWS with moto. A production pipeline would add a st
 **Deployment**
 
 The pipeline currently stops at building and scanning the image. The natural next step is a deploy job that runs `helm upgrade` against a staging cluster on every merge to `main`, gated behind the full quality pipeline. Production promotion could be a separate manual-approval job or triggered by tagging a release.
+
+---
+
+## Task 6 – Observability
+
+All three observability pillars are wired in.
+
+### Structured JSON logs
+
+Every `logger.info()` / `logger.error()` call in the application emits a compact JSON line to stdout:
+
+```json
+{"asctime": "2026-02-24 22:57:55", "levelname": "INFO", "name": "app.routes.users", "message": "User created: test-user@prima.it"}
+{"asctime": "2026-02-24 22:57:55", "levelname": "INFO", "name": "app.routes.users", "message": "Listed 1 user(s)"}
+```
+
+View live:
+
+```bash
+make logs-api
+```
+
+### Prometheus metrics
+
+`/metrics` is exposed automatically by `prometheus-fastapi-instrumentator` — no route code needed. Counters, histograms, and in-progress gauges per HTTP method and handler.
+
+```bash
+curl http://localhost:8000/metrics
+```
+
+After running `make smoke-test`, query Prometheus directly:
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query?query=http_requests_total' | python3 -m json.tool
+```
+
+### Traffic generator
+
+`scripts/load.py` sends a realistic mix of requests against the running stack to populate the Grafana dashboard with meaningful data. No external dependencies — uses only the Python standard library.
+
+```bash
+make load                  # 60 s of traffic (default)
+make load DURATION=120     # override duration
+python3 scripts/load.py --help
+```
+
+Request mix:
+
+| Traffic type | Share | Purpose |
+|---|---|---|
+| `GET /health` | 28% | Baseline heartbeat |
+| `GET /users` | 24% | Read path |
+| `POST /user` (valid) | 20% | Write path — creates real users |
+| `POST /user` (bad email) | 13% | Intentional 422s — shows error rate panel |
+| `GET /metrics` | 15% | Simulates Prometheus scrape traffic |
+
+### Grafana dashboard
+
+A pre-built dashboard is provisioned automatically from `monitoring/grafana/provisioning/dashboards/prima-api-dashboard.json` — no manual setup required.
+
+Open **http://localhost:3000/d/prima-api-obs** (no login needed).
+
+| Panel | What it shows |
+|---|---|
+| Total Requests | Running total across all endpoints |
+| Error Rate | 4xx + 5xx req/s with colour thresholds |
+| P95 Latency | 95th percentile response time |
+| Requests In-Flight | Current concurrent requests |
+| Request Rate by Endpoint | Time-series per method + handler |
+| Latency Percentiles | p50 / p90 / p99 per endpoint |
+| HTTP Status Codes | 2xx / 4xx / 5xx rates over time |
+| Total Requests by Endpoint | Bar chart sorted by volume |
+
+### Tracing
+
+The OpenTelemetry SDK is initialised in `app/main.py` and `FastAPIInstrumentor` wraps every request. In the current setup no exporter is configured, so spans are generated but discarded — this has zero runtime cost. To ship traces to a backend, replace the no-op `TracerProvider` with one line:
+
+```python
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint="http://jaeger:4317")))
+```
+
+Adding Jaeger (or Tempo) to docker-compose then gives a full trace UI out of the box.
 
 ---
 

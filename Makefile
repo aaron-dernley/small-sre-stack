@@ -1,6 +1,7 @@
-.PHONY: help dev test test-cov build smoke-test down clean logs logs-api logs-localstack \
+.PHONY: help dev test test-cov build smoke-test load down clean logs logs-api logs-localstack \
         tf-apply tf-destroy \
-        k8s k8s-start k8s-build k8s-deploy k8s-test k8s-down
+        k8s k8s-start k8s-build k8s-deploy k8s-test k8s-down \
+        observability
 
 SHELL       := /bin/bash
 PROJECT_DIR := $(shell pwd)
@@ -33,8 +34,8 @@ dev: ## Full local stack: LocalStack → Terraform → API
 	@echo "==> [2/3] Provisioning infrastructure with Terraform..."
 	@$(MAKE) tf-apply
 	@echo ""
-	@echo "==> [3/3] Starting API..."
-	@docker compose up api -d
+	@echo "==> [3/3] Starting API + observability stack..."
+	@docker compose up api prometheus grafana -d
 	@echo "==> Waiting for API to be healthy..."
 	@until curl -sf http://localhost:8000/health > /dev/null 2>&1; do \
 		printf "."; sleep 2; \
@@ -45,10 +46,14 @@ dev: ## Full local stack: LocalStack → Terraform → API
 	@echo "  Stack is up:"
 	@echo "    API:        http://localhost:8000"
 	@echo "    API docs:   http://localhost:8000/docs"
+	@echo "    Metrics:    http://localhost:8000/metrics"
+	@echo "    Prometheus: http://localhost:9090"
+	@echo "    Grafana:    http://localhost:3000  (no login required)"
 	@echo "    LocalStack: $(LOCALSTACK_ENDPOINT)"
 	@echo ""
 	@echo "  Next steps:"
 	@echo "    make smoke-test   # verify the API end-to-end"
+	@echo "    make load         # send traffic and populate Grafana"
 	@echo "    make down         # stop everything"
 	@echo "------------------------------------------------------------"
 	@echo ""
@@ -64,6 +69,9 @@ test-cov: ## Run unit tests with coverage report
 
 smoke-test: ## Run API smoke tests against the running local stack (port 8000)
 	@$(MAKE) _smoke PORT=8000
+
+load: ## Send 60 s of mixed traffic to populate the Grafana dashboard (DURATION=N to override)
+	@python3 scripts/load.py --url http://localhost:8000 --duration $${DURATION:-60}
 
 k8s-smoke-test: ## Run API smoke tests against the k8s deployment (port 8080)
 	@$(MAKE) _smoke PORT=$(K8S_PORT)
@@ -169,6 +177,13 @@ clean: ## Stop containers and remove local Terraform state
 	@rm -f  $(TF_DIR)/terraform.tfstate $(TF_DIR)/terraform.tfstate.backup
 	@rm -rf $(TF_DIR)/.terraform $(TF_DIR)/.terraform.lock.hcl
 	@echo "==> Clean complete."
+
+# ── Observability ─────────────────────────────────────────────────────────────
+
+observability: ## Open Grafana and Prometheus in the browser
+	@echo "  Prometheus: http://localhost:9090"
+	@echo "  Grafana:    http://localhost:3000"
+	@open http://localhost:3000 2>/dev/null || xdg-open http://localhost:3000 2>/dev/null || true
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 

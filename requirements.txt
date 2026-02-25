@@ -6,3 +6,7 @@ pydantic-settings==2.7.1
 python-multipart==0.0.22
 email-validator==2.2.0
 eval-type-backport==0.2.2
+python-json-logger==3.3.0
+prometheus-fastapi-instrumentator==7.1.0
+opentelemetry-sdk==1.33.1
+opentelemetry-instrumentation-fastapi==0.54b1
