@@ -64,6 +64,25 @@ The application never bootstraps its own infrastructure — Terraform always run
 
 `make dev` requires **minikube**, **helm**, and **kubectl** to be installed. It will check for these upfront and exit with a clear error if any are missing.
 
+#### Two deployment targets, one LocalStack
+
+`make dev` intentionally runs two independent deployment targets simultaneously — not because
+that's a production pattern, but because it demonstrates both within a single command:
+
+| Deployment | Port | Purpose |
+|---|---|---|
+| docker-compose | `:8000` | Primary dev environment — also the Prometheus + Grafana target |
+| Kubernetes (minikube) | `:8080` | Separate k8s deployment demo |
+
+Both instances share the same LocalStack backend for convenience. In production they would be
+separate environments with separate databases.
+
+Prometheus and Grafana are part of the docker-compose environment and monitor the docker-compose
+API only. The Kubernetes deployment doesn't feed into Prometheus here — that's intentional. In a
+real cluster, observability would use the [Prometheus Operator](https://prometheus-operator.dev)
+deployed inside the cluster, with automatic pod discovery via the Kubernetes API rather than a
+static scrape config.
+
 After `make dev` the following URLs are available:
 
 | URL | Description |
@@ -71,7 +90,7 @@ After `make dev` the following URLs are available:
 | http://localhost:8000/docs | Interactive API docs — docker-compose |
 | http://localhost:8000/metrics | Prometheus metrics endpoint |
 | http://localhost:8080/docs | Interactive API docs — Kubernetes (minikube) |
-| http://localhost:9090 | Prometheus |
+| http://localhost:9090 | Prometheus (monitors the docker-compose API) |
 | http://localhost:3000/d/prima-api-obs | Grafana dashboard (no login required) |
 
 ### `make smoke-test` output
