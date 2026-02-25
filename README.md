@@ -337,7 +337,7 @@ The pipeline currently stops at building and scanning the image. The natural nex
 
 ---
 
-## Task 6 – Observability
+## Extra – Observability
 
 All three observability pillars are wired in.
 
