@@ -1,4 +1,4 @@
-# Prima SRE Tech Challenge
+# SRE Tech Challenge
 
 Python REST API backed by DynamoDB and S3, containerised with Docker, provisioned with Terraform, deployed via Helm on Kubernetes, with a GitHub Actions CI/CD pipeline.
 
